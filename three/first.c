@@ -5,8 +5,8 @@
 #include <pthread.h>
 
 //defintions
-#define LOCKED = 1
-#define UNLOCKED = 0
+#define LOCKED  1
+#define UNLOCKED  0
 
 /***		DATA STRUCTURES 		**/
 
@@ -39,7 +39,7 @@ struct Resource init_resource()
 		r.curr_using[i] = NULL;
 	}
 
-	r.LOCK = 0;
+	r.LOCK = UNLOCKED;
 
 	return r;
 }

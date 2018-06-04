@@ -154,7 +154,6 @@ void customer()
 
 int main(void)
 {
-	printf("HEllo world!\n");
 	srand(time(NULL));
 	
 	pthread_t barber;
@@ -168,6 +167,9 @@ int main(void)
 
 	pthread_create(&barber, &barber_attr, barber_shop, NULL);
 	pthread_create(&customers, &customers_attr, create_customers, NULL);
+
+	pthread_join(barber, NULL);
+	pthread_join(customers, NULL);
 
 	return 0;
 }

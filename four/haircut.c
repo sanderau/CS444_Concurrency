@@ -10,7 +10,8 @@
 
 #define MAX_WAIT_TIME 10
 #define RUNNING 1
-#define MAX_CUSTOMERS 10
+#define MAX_CHAIRS 10
+#define MAX_THREADS 32
 
 #define SLEEPING 1
 #define AWAKE 0
@@ -19,7 +20,7 @@
 
 /***		Data Structures, and global variables 		***/
 
-
+int curr_threads=0;
 int barber_status=0;
 int haircut_time;
 int curr_customers=0;
@@ -44,7 +45,9 @@ pthread_cond_t barber_sleep_cond;
 
 void get_hair_cut();
 void *barber_shop();
-void *customer();
+void *create_customers();
+void *enter_customer();
+void customer();
 
 void get_hair_cut()
 {
@@ -57,6 +60,33 @@ void get_hair_cut()
 		printf("Customer #%d is getting a haircut, it will take about %s seconds...\n", customers_served, seconds[haircut_time-1]);
 		
 	sleep(haircut_time);
+}
+
+void *create_customers()
+{
+	pthread_t possible_customers[MAX_CHAIRS*3];
+	pthread_attr_t customers_attr[MAX_CHAIRS*3];
+
+	while(RUNNING) {
+		
+		int sleep_time = rand()%5+1;
+
+		sleep(sleep_time);
+
+		if(curr_threads < MAX_THREADS) {
+			curr_threads++;
+			pthread_create(&possible_customers[curr_threads-1], &customers_attr[curr_threads-1], enter_customer, NULL);
+		}
+
+	}
+}
+
+void *enter_customer() 
+{
+	pthread_mutex_lock(&barber_shop_mut);
+	curr_customers++;
+	printf("Customer has entered the shop, they are checking for open seats...\n");
+	customer();
 }
 
 void *barber_shop()
@@ -83,18 +113,37 @@ void *barber_shop()
 				printf("The barber is cutting the hair for %s second...\n", seconds[haircut_time-1]);
 			else 
 				printf("The barber is cutting the hair for %s seconds...\n", seconds[haircut_time-1]);
+
+			sleep(haircut_time);
 		}
 	}
 }
 
-void *customer()
+void customer()
 {
-	if(curr_customers<MAX_CUSTOMERS && curr_customers >= 0) {
+	if(curr_customers<MAX_CHAIRS && curr_customers >= 0) {
+		if(barber_status == SLEEPING) {
+			printf("The customer pokes the snoring barber to wake him up...\n");
+			pthread_cond_signal(&barber_sleep_cond);
+		}	
 
-	} else if(curr_customers>=MAX_CUSTOMERS){
+		pthread_mutex_unlock(&barber_shop_mut);
 
+		pthread_mutex_lock(&hair_cut_mut);
+		pthread_cond_wait(&barber_working_cond, &hair_cut_mut);
+		get_hair_cut();
+		pthread_mutex_unlock(&hair_cut_mut);
+
+		pthread_exit(0);
+		curr_customers--;
+
+	} else if(curr_customers>=MAX_CHAIRS){
+		pthread_mutex_unlock(&barber_shop_mut);
+		curr_customers--;
+		printf("There are no more chairs, the customer will now leave...\n");
+		pthread_exit(0);
 	} else {
-		fprintf(stderr, "An error occured!\nExiting...\n");
+		fprintf(stderr, "An error occured\nExiting...\n");
 		exit(1);
 	}
 }
@@ -105,6 +154,7 @@ void *customer()
 
 int main(void)
 {
+	printf("HEllo world!\n");
 	srand(time(NULL));
 	
 	pthread_t barber;
@@ -117,7 +167,7 @@ int main(void)
 	pthread_attr_init(&customers_attr);
 
 	pthread_create(&barber, &barber_attr, barber_shop, NULL);
-	pthread_create(&customers, &customers_attr, customer, NULL);
+	pthread_create(&customers, &customers_attr, create_customers, NULL);
 
 	return 0;
 }
